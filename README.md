@@ -3,7 +3,7 @@
 Daily research workflow for potential website clients. It is discovery-only and does not send email.
 
 ## Required GitHub Actions secrets
-- BRAVE_SEARCH_API_KEY
+- TINYFISH_API_KEY
 - SUPABASE_URL
 - SUPABASE_SERVICE_ROLE_KEY
 
@@ -17,7 +17,7 @@ Open the Actions tab and run "Daily website prospect discovery" after adding all
 - Candidate records include source URLs and basic evidence.
 - The website quality check is heuristic and must be manually verified.
 - A publicly listed email is not proof of consent. The workflow does not send email or contact prospects.
-- Search provider usage may cost money; confirm your plan before enabling.
+- TinyFish Search is currently advertised as free without a credit card; see https://www.tinyfish.ai/free-search-fetch. Verify current limits and terms before production use.
 
 ## Offer
 Website build: €800, including the first year of maintenance. Renewal: €200/year.
