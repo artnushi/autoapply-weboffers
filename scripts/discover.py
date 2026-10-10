@@ -1,3 +1,4 @@
+import hashlib
 import os
 import re
 import time
@@ -49,13 +50,11 @@ def is_directory(url):
 def inspect_site(url):
     try:
         response = HTTP.get(url, timeout=10, allow_redirects=True)
-        if "text/html" not in response.headers.get("content-type", ""):
-            return {"url": response.url, "status_code": response.status_code, "reachable": response.status_code < 400}
-        html = response.text[:500000]
+        html = response.text[:500000] if "text/html" in response.headers.get("content-type", "") else ""
         title = re.search(r"<title[^>]*>(.*?)</title>", html, re.I | re.S)
-        title_text = re.sub(r"\s+", " ", title.group(1)).strip() if title else ""
+        title_text = re.sub(r"\\s+", " ", title.group(1)).strip() if title else ""
         old_copyright = bool(re.search(r"copyright.{0,30}(?:201[0-8]|2019)", html, re.I))
-        has_viewport = bool(re.search(r'<meta[^>]+name=["\']viewport["\']', html, re.I))
+        has_viewport = bool(re.search(r'<meta[^>]+name=["\\']viewport["\\']', html, re.I))
         return {
             "url": response.url,
             "status_code": response.status_code,
@@ -100,7 +99,7 @@ def main():
     run_id = rows[0]["id"] if rows else None
 
     try:
-        seen_domains = set()
+        seen_source_keys = set()
         for code, country, industries in COUNTRIES:
             for industry in industries:
                 if saved >= daily_limit:
@@ -115,16 +114,16 @@ def main():
                     if saved >= daily_limit:
                         break
                     result_url = result.get("url", "")
-                    title = re.sub(r"\s+", " ", result.get("title", "")).strip()
-                    description = re.sub(r"\s+", " ", result.get("description", "")).strip()
+                    title = re.sub(r"\\s+", " ", result.get("title", "")).strip()
+                    description = re.sub(r"\\s+", " ", result.get("description", "")).strip()
                     if not result_url or not title or not description or not is_directory(result_url):
                         continue
-                    host = (urlparse(result_url).hostname or "").lower()
-                    domain = re.sub(r"^www\.", "", host)
-                    if not domain or domain in seen_domains:
+
+                    business_name = re.split(r"\\s+[|–-]\\s+", title)[0].strip()[:180]
+                    source_key = hashlib.sha256((code + "|" + result_url.split("#")[0].rstrip("/")).encode("utf-8")).hexdigest()
+                    if source_key in seen_source_keys:
                         continue
-                    seen_domains.add(domain)
-                    business_name = re.split(r"\s+[|–-]\s+", title)[0].strip()[:180]
+                    seen_source_keys.add(source_key)
 
                     direct_results = search(brave_key, f'"{business_name}" official website {country}', count=5)
                     websites = [
@@ -148,19 +147,22 @@ def main():
                     else:
                         evidence.append("No non-directory official website surfaced; this does not prove none exists.")
 
+                    site_host = (urlparse(site_url).hostname or "").lower() if site_url else None
+                    domain = re.sub(r"^www\\.", "", site_host) if site_host else None
                     payload = {
                         "business_name": business_name,
                         "country_code": code,
                         "industry": industry,
                         "website_url": site_url,
                         "domain": domain,
+                        "source_key": source_key,
                         "website_status": (
                             "broken" if site_check and not site_check.get("reachable")
                             else "outdated" if site_check and site_check.get("reachable")
                             else "missing" if not site_url
                             else "unknown"
                         ),
-                        "evidence": "\n".join(evidence),
+                        "evidence": "\\n".join(evidence),
                         "source_urls": [result_url] + ([site_url] if site_url else []),
                         "contact_method": "unknown",
                         "outreach_eligibility": "manual_review",
@@ -170,7 +172,7 @@ def main():
                     try:
                         inserted = supabase(
                             "POST", leads_url, supabase_key,
-                            params={"on_conflict": "domain"},
+                            params={"on_conflict": "source_key"},
                             headers={"Prefer": "resolution=ignore-duplicates,return=representation"},
                             json=payload,
                         )
@@ -189,9 +191,9 @@ def main():
             if saved >= daily_limit:
                 break
 
-        report_text = "\n".join(report) if report else "No new candidates met the initial heuristics today."
+        report_text = "\\n".join(report) if report else "No new candidates met the initial heuristics today."
         print("## Daily website prospect discovery — " + today)
-        print("\nSaved new candidates: " + str(saved) + "\n")
+        print("\\nSaved new candidates: " + str(saved) + "\\n")
         print(report_text)
         if run_id:
             update = supabase(
