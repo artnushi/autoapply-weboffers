@@ -191,7 +191,12 @@ def main():
                 break
 
         report_text = "\n".join(report) if report else "No new candidates met the initial heuristics today."
-        print(f"## Daily website prospect discovery — {today}\n\nSaved new candidates: {saved}\n\n{report_text}")
+        summary = f"## Daily website prospect discovery — {today}\n\nSaved new candidates: {saved}\n\n{report_text}"
+        print(summary)
+        summary_path = os.getenv("GITHUB_STEP_SUMMARY")
+        if summary_path:
+            with open(summary_path, "a", encoding="utf-8") as summary_file:
+                summary_file.write(summary + "\n")
         if run_id:
             result = supabase(
                 "PATCH", runs_url, supabase_key,
