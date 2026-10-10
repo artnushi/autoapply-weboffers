@@ -1,0 +1,33 @@
+name: Daily website prospect discovery
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 9 * * 1-5"
+      timezone: "Europe/Belgrade"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: website-prospect-discovery
+  cancel-in-progress: false
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Discover and save prospects
+        env:
+          BRAVE_SEARCH_API_KEY: ${{ secrets.BRAVE_SEARCH_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          DAILY_LIMIT: "5"
+        run: python scripts/discover.py
