@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 
 import requests
 
-BRAVE_ENDPOINT = "https://api.search.brave.com/res/v1/web/search"
+TINYFISH_ENDPOINT = "https://api.search.tinyfish.ai"
 COUNTRIES = [
     ("CH", "Switzerland", ["cleaning company", "dentist", "plumber", "landscaping"]),
     ("DE", "Germany", ["cleaning service", "dentist", "plumber", "roofing company"]),
@@ -32,14 +32,13 @@ def required_env(name):
 
 def search(api_key, query, count=10):
     response = HTTP.get(
-        BRAVE_ENDPOINT,
-        headers={"Accept": "application/json", "X-Subscription-Token": api_key},
-        params={"q": query, "count": count, "search_lang": "en"},
+        TINYFISH_ENDPOINT,
+        headers={"X-API-Key": api_key, "Accept": "application/json"},
+        params={"query": query, "language": "en"},
         timeout=20,
     )
     response.raise_for_status()
-    return response.json().get("web", {}).get("results", [])
-
+    return response.json().get("results", [])[:count]
 
 def is_directory(url):
     host = (urlparse(url).hostname or "").lower()
@@ -77,7 +76,7 @@ def supabase(method, url, key, **kwargs):
 
 
 def main():
-    brave_key = required_env("BRAVE_SEARCH_API_KEY")
+    tinyfish_key = required_env("TINYFISH_API_KEY")
     supabase_url = required_env("SUPABASE_URL").rstrip("/")
     supabase_key = required_env("SUPABASE_SERVICE_ROLE_KEY")
     daily_limit = min(5, max(1, int(os.getenv("DAILY_LIMIT", "5"))))
@@ -104,7 +103,7 @@ def main():
                     break
                 query = f"{industry} {country} contact local business directory"
                 try:
-                    results = search(brave_key, query, count=10)
+                    results = search(tinyfish_key, query, count=10)
                 except Exception as exc:
                     report.append(f"- Search failed for {query}: {exc}")
                     continue
@@ -126,7 +125,7 @@ def main():
                         continue
                     seen_source_keys.add(source_key)
 
-                    direct_results = search(brave_key, f'"{business_name}" official website {country}', count=5)
+                    direct_results = search(tinyfish_key, f'"{business_name}" official website {country}', count=5)
                     website_results = [
                         item for item in direct_results
                         if item.get("url") and not is_directory(item["url"])
